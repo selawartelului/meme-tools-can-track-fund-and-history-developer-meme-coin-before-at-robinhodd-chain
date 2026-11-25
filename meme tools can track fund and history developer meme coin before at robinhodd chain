@@ -1,0 +1,142 @@
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract MemeDeveloperTracker {
+
+    struct Developer {
+        address wallet;
+        uint256 tokenCount;
+        uint256 linkedWalletCount;
+        bool registered;
+    }
+
+    struct TokenRecord {
+        address token;
+        uint256 createdAt;
+        string name;
+        string symbol;
+    }
+
+    struct FundRecord {
+        address from;
+        address to;
+        uint256 amount;
+        uint256 timestamp;
+        string note;
+    }
+
+    mapping(address => Developer) public developers;
+
+    mapping(address => TokenRecord[]) public developerTokens;
+
+    mapping(address => address[]) public linkedWallets;
+
+    FundRecord[] public fundHistory;
+
+    event DeveloperRegistered(address indexed wallet);
+
+    event TokenAdded(
+        address indexed developer,
+        address indexed token,
+        string name,
+        string symbol
+    );
+
+    event WalletLinked(
+        address indexed developer,
+        address indexed linkedWallet
+    );
+
+    event FundReported(
+        address indexed from,
+        address indexed to,
+        uint256 amount
+    );
+
+    // Register developer
+    function registerDeveloper() external {
+        require(!developers[msg.sender].registered, "Already registered");
+
+        developers[msg.sender] = Developer({
+            wallet: msg.sender,
+            tokenCount: 0,
+            linkedWalletCount: 0,
+            registered: true
+        });
+
+        emit DeveloperRegistered(msg.sender);
+    }
+
+    // Add previous meme coin
+    function addToken(
+        address token,
+        string calldata name,
+        string calldata symbol
+    ) external {
+        require(developers[msg.sender].registered, "Not registered");
+        require(token != address(0), "Invalid token");
+
+        developerTokens[msg.sender].push(
+            TokenRecord(token, block.timestamp, name, symbol)
+        );
+
+        developers[msg.sender].tokenCount++;
+
+        emit TokenAdded(msg.sender, token, name, symbol);
+    }
+
+    // Link suspicious or related wallets
+    function linkWallet(address wallet) external {
+        require(developers[msg.sender].registered, "Not registered");
+        require(wallet != address(0), "Invalid wallet");
+
+        linkedWallets[msg.sender].push(wallet);
+        developers[msg.sender].linkedWalletCount++;
+
+        emit WalletLinked(msg.sender, wallet);
+    }
+
+    // Record a fund movement report
+    function reportFund(
+        address from,
+        address to,
+        uint256 amount,
+        string calldata note
+    ) external {
+        require(developers[msg.sender].registered, "Not registered");
+        require(from != address(0) && to != address(0), "Invalid wallet");
+        require(amount > 0, "Invalid amount");
+
+        fundHistory.push(
+            FundRecord(from, to, amount, block.timestamp, note)
+        );
+
+        emit FundReported(from, to, amount);
+    }
+
+    // Read token history
+    function getTokens(address developer)
+        external view returns (TokenRecord[] memory)
+    {
+        return developerTokens[developer];
+    }
+
+    // Read linked wallets
+    function getLinkedWallets(address developer)
+        external view returns (address[] memory)
+    {
+        return linkedWallets[developer];
+    }
+
+    // Read fund history
+    function getFundHistory()
+        external view returns (FundRecord[] memory)
+    {
+        return fundHistory;
+    }
+
+    function totalFundReports() external view returns (uint256) {
+        return fundHistory.length;
+    }
+}
